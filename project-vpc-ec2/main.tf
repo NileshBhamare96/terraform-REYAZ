@@ -1,27 +1,27 @@
-resource "aws_vpc" "myvpc" {
+resource "aws_vpc" "my_vpc" {
   cidr_block = var.cidr
 }
 
 resource "aws_subnet" "sub1" {
-  vpc_id                  = aws_vpc.myvpc.id
+  vpc_id                  = aws_vpc.my_vpc.id
   cidr_block              = "192.168.1.0/24"
   availability_zone       = "ap-south-1a"
   map_public_ip_on_launch = true
 }
 
 resource "aws_subnet" "sub2" {
-  vpc_id                  = aws_vpc.myvpc.id
+  vpc_id                  = aws_vpc.my_vpc.id
   cidr_block              = "192.168.2.0/24"
   availability_zone       = "ap-south-1b"
   map_public_ip_on_launch = true
 }
 
 resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.myvpc.id
+  vpc_id = aws_vpc.my_vpc.id
 }
 
 resource "aws_route_table" "RT" {
-  vpc_id = aws_vpc.myvpc.id
+  vpc_id = aws_vpc.my_vpc.id
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -39,17 +39,18 @@ resource "aws_route_table_association" "rta2" {
   route_table_id = aws_route_table.RT.id
 }
 
-resource "aws_security_group" "webSg" {
+resource "aws_security_group" "webSG" {
   name   = "web"
-  vpc_id = aws_vpc.myvpc.id
+  vpc_id = aws_vpc.my_vpc.id
 
   ingress {
-    description = "HTTP from VPC"
+    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   ingress {
     description = "SSH"
     from_port   = 22
@@ -66,38 +67,36 @@ resource "aws_security_group" "webSg" {
   }
 
   tags = {
-    Name = "Web-sg"
+    Name = "web-sg"
   }
 }
 
 resource "aws_s3_bucket" "example" {
-  bucket = "terraform-s3-test-reya-project"
+  bucket = "terraform-s3-test-nilesh-project"
 }
 
-
 resource "aws_instance" "webserver1" {
-  ami                    = "ami-00bb6a80f01f03502"
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.webSg.id]
+  ami                    = "ami-0d4cbf33677f7d3c5"
+  instance_type          = "t3.micro"
+  vpc_security_group_ids = [aws_security_group.webSG.id]
   subnet_id              = aws_subnet.sub1.id
   user_data              = base64encode(file("userdata.sh"))
 }
 
 resource "aws_instance" "webserver2" {
-  ami                    = "ami-00bb6a80f01f03502"
-  instance_type          = "t2.micro"
-  vpc_security_group_ids = [aws_security_group.webSg.id]
+  ami                    = "ami-0d4cbf33677f7d3c5"
+  instance_type          = "t3.micro"
+  vpc_security_group_ids = [aws_security_group.webSG.id]
   subnet_id              = aws_subnet.sub2.id
   user_data              = base64encode(file("userdata1.sh"))
 }
 
-#create alb
-resource "aws_lb" "myalb" {
-  name               = "myalb"
+resource "aws_lb" "my_lb" {
+  name               = "mylb"
   internal           = false
   load_balancer_type = "application"
 
-  security_groups = [aws_security_group.webSg.id]
+  security_groups = [aws_security_group.webSG.id]
   subnets         = [aws_subnet.sub1.id, aws_subnet.sub2.id]
 
   tags = {
@@ -109,7 +108,7 @@ resource "aws_lb_target_group" "tg" {
   name     = "myTG"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = aws_vpc.myvpc.id
+  vpc_id   = aws_vpc.my_vpc.id
 
   health_check {
     path = "/"
@@ -130,7 +129,7 @@ resource "aws_lb_target_group_attachment" "attach2" {
 }
 
 resource "aws_lb_listener" "listener" {
-  load_balancer_arn = aws_lb.myalb.arn
+  load_balancer_arn = aws_lb.my_lb.arn
   port              = 80
   protocol          = "HTTP"
 
@@ -140,6 +139,6 @@ resource "aws_lb_listener" "listener" {
   }
 }
 
-output "loadbalancerdns" {
-  value = aws_lb.myalb.dns_name
+output "loadbalancer_dns" {
+  value = aws_lb.my_lb.dns_name
 }
